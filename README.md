@@ -111,22 +111,31 @@ activo y si te falta algún modelo.
 ## Prueba rápida con los ejemplos incluidos
 
 En la carpeta [`ejemplos/`](ejemplos) tienes un caso completo de Física de 1.º de
-Bachillerato (4 preguntas, 10 puntos en total) para probar sin buscar material:
+Bachillerato para probar sin buscar material propio: un examen de **6 problemas
+repartidos en 2 páginas** (cinemática, dinámica, energía y teoría), con 10 puntos en
+total, y tres alumnos con niveles distintos.
 
-| Archivo | Qué es |
-|---|---|
-| `rubrica_fisica_cinematica.pdf` | Rúbrica del profesor: soluciones y criterios de puntuación |
-| `ana_garcia.pdf` | Examen bien resuelto (debería sacar nota alta) |
-| `luis_martin.pdf` | Examen con errores conceptuales típicos (nota media-baja) |
+| Archivo | Qué es | Nota que suele sacar |
+|---|---|---|
+| `rubrica_fisica_cinematica.pdf` | Rúbrica del profesor: soluciones desarrolladas y criterios de puntuación apartado por apartado | — |
+| `ana_garcia.pdf` | Examen resuelto correctamente y bien razonado | ~9,9 |
+| `marta_soler.pdf` | Buen planteamiento con fallos puntuales (coeficiente equivocado, confunde tensión con peso, teoría incompleta) | ~7,3 |
+| `luis_martin.pdf` | Errores conceptuales de base (ignora el rozamiento, confunde MRUA con movimiento uniforme, apartados en blanco) | ~4,1 |
 
 Pasos:
 
 1. En **Rúbrica de corrección**, sube `rubrica_fisica_cinematica.pdf` y espera a que
    se generen los embeddings.
-2. En **Corregir examen**, selecciona **los dos exámenes a la vez** y pulsa
+2. En **Corregir examen**, selecciona **los tres exámenes a la vez** y pulsa
    *Añadir a la cola*.
-3. Verás cómo se corrigen uno detrás de otro. Al terminar, pulsa el ojo de cada fila
+3. Verás cómo se corrigen uno detrás de otro (unos 2 minutos por alumno con
+   `gemma3:12b` en una GPU de gama media). Al terminar, pulsa el ojo de cada fila
    para revisar el desglose, ajustar notas si hace falta y descargar el informe PDF.
+
+Los errores de Marta y Luis están puestos a propósito para que se vea cómo el modelo
+localiza el fallo concreto y cita el criterio de la rúbrica que aplica. Las notas son
+orientativas: un modelo local tiene algo de variación entre ejecuciones, y por eso
+existe la corrección manual.
 
 > El nombre del alumno se toma del nombre del archivo (`ana_garcia.pdf` → «Ana Garcia»),
 > salvo que subas un único examen y escribas el nombre a mano. Nombra los PDFs con el

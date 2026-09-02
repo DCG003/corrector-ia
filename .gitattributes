@@ -1,0 +1,7 @@
+# Los PDF generados con ReportLab no contienen bytes NUL al principio, así que Git
+# los toma por texto y les aplica conversión de fin de línea. Al clonar en Windows
+# (core.autocrlf=true) eso inserta bytes de más y descoloca la tabla xref del PDF.
+# Marcarlos como binarios evita cualquier transformación.
+*.pdf binary
+*.png binary
+*.ico binary
