@@ -1,0 +1,31 @@
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# --- Node ---
+node_modules/
+dist/
+
+# --- Datos locales ---
+# Contienen exámenes, notas e informes de alumnos reales: nunca deben publicarse.
+# La aplicación recrea estas carpetas sola al arrancar.
+rags/
+resultados/
+informes/
+temp/
+temp_pdf_images/
+
+# --- Herramientas locales ---
+.claude/
+.agents/
+skills-lock.json
+
+# --- Editor / sistema ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

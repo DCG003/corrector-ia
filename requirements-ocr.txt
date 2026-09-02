@@ -1,0 +1,7 @@
+# OCR opcional: solo necesario para corregir exámenes ESCANEADOS o manuscritos.
+# Sin esto la app sigue funcionando, pero extrae el texto de los PDF con PyMuPDF,
+# lo que únicamente sirve para PDFs digitales (con capa de texto).
+#
+# Atención: glmocr arrastra torch + transformers (~2,5 GB de descarga).
+# Requiere además el modelo 'glm-ocr' en Ollama (lo descarga install.ps1).
+glmocr>=0.1.5
