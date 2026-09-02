@@ -135,9 +135,9 @@ total, y tres alumnos con niveles distintos.
 | Archivo | Qué es | Nota que suele sacar |
 |---|---|---|
 | `rubrica_fisica_cinematica.pdf` | Rúbrica del profesor: soluciones desarrolladas y criterios de puntuación apartado por apartado | — |
-| `ana_garcia.pdf` | Examen resuelto correctamente y bien razonado | ~9,9 |
-| `marta_soler.pdf` | Buen planteamiento con fallos puntuales (coeficiente equivocado, confunde tensión con peso, teoría incompleta) | ~7,3 |
-| `luis_martin.pdf` | Errores conceptuales de base (ignora el rozamiento, confunde MRUA con movimiento uniforme, apartados en blanco) | ~4,1 |
+| `ana_garcia.pdf` | Examen resuelto correctamente y bien razonado | 9,9 – 10 |
+| `marta_soler.pdf` | Buen planteamiento con fallos puntuales (coeficiente equivocado, confunde tensión con peso, teoría incompleta) | 7 – 8 |
+| `luis_martin.pdf` | Errores conceptuales de base (ignora el rozamiento, confunde MRUA con movimiento uniforme, apartados en blanco) | 2 – 4 |
 
 Pasos:
 
@@ -183,8 +183,16 @@ RÚBRICA (PDF)                          EXAMEN (PDF)
 Detalles que importan:
 
 - **La puntuación máxima no la decide el modelo.** Se extrae del propio enunciado con
-  una expresión regular (`(2,5 puntos)`, `(3 points)`, …) y la nota que devuelve el
-  modelo se recorta al rango `[0, máximo]`. Así la nota total siempre cuadra.
+  una expresión regular (`(2,5 puntos)`, `(3 points)`, …). Así la nota total siempre cuadra.
+- **La suma tampoco la hace el modelo.** Se le pide que puntúe **cada apartado por
+  separado** y es Python quien suma. Pedirle una nota global por pregunta salía mal:
+  citaba el criterio correcto («0 puntos en b) y en c)») y acto seguido devolvía 0,9
+  sobre 1,5. Si los máximos que propone no cuadran con el total del enunciado, se
+  reescala la proporción para respetarlo, y si añade una fila que repite el total se
+  descarta. El desglose se muestra en la interfaz y en el informe PDF, así que se ve
+  de dónde sale cada décima.
+- **El estado se deriva de la nota**, no lo elige el modelo: así la etiqueta
+  (correcto / parcial / incorrecto) nunca contradice a los puntos.
 - **Un solo modelo en VRAM a la vez.** El pipeline va en dos fases: primero calcula
   el RAG de *todas* las preguntas con el modelo de embeddings cargado, lo libera, y
   después evalúa con el modelo grande. Alternar modelo en cada pregunta agotaba la VRAM.

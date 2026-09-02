@@ -107,6 +107,27 @@ const EvalCard: React.FC<{
                   <p style={{ fontSize: 14, color: 'var(--text)' }}>{e.que_esta_mal}</p>
                 </div>
               )}
+              {e.apartados && e.apartados.length > 0 && (
+                <Field title="Puntuación por apartado">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {e.apartados.map((ap, i) => {
+                      const completo = ap.puntuacion_maxima > 0 && ap.puntuacion_obtenida >= ap.puntuacion_maxima;
+                      const nulo = ap.puntuacion_obtenida <= 0;
+                      return (
+                        <div key={i} style={{ display: 'flex', gap: 10, fontSize: 13.5, alignItems: 'baseline' }}>
+                          <span style={{
+                            fontWeight: 700, flexShrink: 0, minWidth: 62, fontFamily: 'var(--mono)', fontSize: 12,
+                            color: completo ? 'var(--success)' : nulo ? 'var(--error)' : 'var(--warning)',
+                          }}>
+                            {ap.apartado}) {ap.puntuacion_obtenida}/{ap.puntuacion_maxima}
+                          </span>
+                          <span style={{ color: 'var(--text-dim)' }}>{ap.motivo}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Field>
+              )}
               {e.criterio_rubrica && <Field title="Criterio aplicado"><p style={{ fontSize: 13, color: 'var(--text-faint)' }}>{e.criterio_rubrica}</p></Field>}
 
               <Field title="Corrección manual del profesor">

@@ -310,17 +310,116 @@ def parsear_json_robusto(respuesta_raw):
 # Esquema JSON estructurado que Ollama fuerza en la salida del modelo.
 # El modelo SOLO decide la evaluación; los campos largos (respuesta del alumno) los
 # rellena Python, para que la salida sea corta y siempre válida.
+#
+# El modelo puntúa APARTADO POR APARTADO y es Python quien suma: pedirle una nota
+# global hacía que citara bien la rúbrica y luego se inventara el número (por ejemplo,
+# decía "0 puntos en b) y en c)" y aun así devolvía 0,9 sobre 1,5).
 ESQUEMA_EVALUACION = {
     'type': 'object',
     'properties': {
         'estado': {'type': 'string', 'enum': ['CORRECTO', 'PARCIAL', 'INCORRECTO']},
+        'apartados': {
+            'type': 'array',
+            'items': {
+                'type': 'object',
+                'properties': {
+                    'apartado': {'type': 'string'},
+                    'puntuacion_maxima': {'type': 'number'},
+                    'puntuacion_obtenida': {'type': 'number'},
+                    'motivo': {'type': 'string'},
+                },
+                'required': ['apartado', 'puntuacion_maxima', 'puntuacion_obtenida', 'motivo'],
+            },
+        },
         'puntuacion_obtenida': {'type': 'number'},
         'enunciado': {'type': 'string'},
         'que_esta_mal': {'type': 'string'},
         'criterio_rubrica': {'type': 'string'},
     },
-    'required': ['estado', 'puntuacion_obtenida', 'que_esta_mal', 'criterio_rubrica'],
+    'required': ['estado', 'apartados', 'puntuacion_obtenida', 'que_esta_mal', 'criterio_rubrica'],
 }
+
+
+# Marcas que separan el enunciado de lo que escribió el alumno, en varios idiomas.
+# Se exige inicio de línea y dos puntos para no confundirlas con frases del propio
+# enunciado del tipo "Razona la respuesta.".
+_PATRON_INICIO_RESPUESTA = re.compile(
+    r'^[ \t]*(?:respuestas?|solución|solucion|answer|réponse|reponse|antwort|risposta|resposta)'
+    r'(?:\s+\w+){0,3}?\s*:[ \t]*',
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _extraer_respuesta_alumno(contenido: str) -> str:
+    """Devuelve solo lo que escribió el alumno, si el examen marca dónde empieza.
+
+    Si no hay ninguna marca reconocible se devuelve el bloque entero: para el informe
+    es preferible mostrar de más que perder la respuesta.
+    """
+    m = _PATRON_INICIO_RESPUESTA.search(contenido or '')
+    if not m:
+        return contenido
+    return (contenido[m.end():].strip() or contenido)
+
+
+def _normalizar_apartados(apartados, puntuacion_maxima):
+    """Limpia el desglose que devuelve el modelo y descarta filas de resumen.
+
+    A veces, además de los apartados, el modelo añade una fila que repite el total de
+    la pregunta ('único: 1,7/2'); contarla junto a los apartados falsearía la suma.
+    """
+    limpios = []
+    for ap in (apartados or []):
+        if not isinstance(ap, dict):
+            continue
+        try:
+            maximo = max(0.0, float(ap.get('puntuacion_maxima', 0) or 0))
+            obtenido = max(0.0, float(ap.get('puntuacion_obtenida', 0) or 0))
+        except (TypeError, ValueError):
+            continue
+        limpios.append({
+            'apartado': str(ap.get('apartado', '')).strip() or '—',
+            'puntuacion_maxima': round(maximo, 2),
+            'puntuacion_obtenida': round(min(obtenido, maximo) if maximo > 0 else obtenido, 2),
+            'motivo': str(ap.get('motivo', '')).strip(),
+        })
+
+    if len(limpios) > 1 and puntuacion_maxima > 0:
+        parciales = [a for a in limpios if a['puntuacion_maxima'] < puntuacion_maxima - 1e-6]
+        if parciales:
+            limpios = parciales
+    return limpios
+
+
+def _puntuacion_desde_apartados(apartados, puntuacion_maxima):
+    """Suma los puntos por apartado ya normalizados. Devuelve None si no hay desglose.
+
+    Si los máximos que propone el modelo no cuadran con el máximo real de la pregunta
+    (que sale del enunciado y es la fuente de verdad), se reescala la proporción para
+    respetarlo.
+    """
+    if not apartados:
+        return None
+
+    total_obtenido = sum(a['puntuacion_obtenida'] for a in apartados)
+    total_maximo = sum(a['puntuacion_maxima'] for a in apartados)
+
+    if total_maximo <= 0:
+        return max(0.0, min(total_obtenido, puntuacion_maxima))
+    proporcion = total_obtenido / total_maximo
+    return max(0.0, min(proporcion * puntuacion_maxima, puntuacion_maxima))
+
+
+def _estado_desde_puntuacion(obtenida, maxima):
+    """Deriva el estado de la nota, para que insignia y puntos nunca se contradigan."""
+    if maxima <= 0:
+        return 'PARCIAL'
+    proporcion = obtenida / maxima
+    if proporcion >= 0.9:
+        return 'CORRECTO'
+    if proporcion > 0:
+        return 'PARCIAL'
+    return 'INCORRECTO'
 
 
 def extraer_puntuacion_maxima(texto, defecto=1.0):
@@ -361,10 +460,15 @@ def evaluar_pregunta_con_gemma(info_pregunta, criterios_rag, modelo_gemma=None, 
         '- If the answer reaches the expected results and the reasoning is sound, award FULL marks and use CORRECTO.\n'
         '- Verify the actual work before deducting. When in doubt and the final results look right, be generous.\n'
         'LANGUAGE RULE: detect the language of the student answer and write ALL text fields '
-        '(enunciado, que_esta_mal, criterio_rubrica) in that SAME language.\n'
-        f'SCORING: the maximum score for this question is {puntuacion_maxima}. Set "puntuacion_obtenida" between 0 and '
-        f'{puntuacion_maxima}. Use "estado" = CORRECTO if essentially full marks, PARCIAL if partially right, '
-        'INCORRECTO if largely wrong.\n'
+        '(enunciado, que_esta_mal, criterio_rubrica, motivo) in that SAME language.\n'
+        f'SCORING: the maximum score for this whole question is {puntuacion_maxima}.\n'
+        '- Break the question into its parts (a, b, c...) and fill "apartados" with ONE entry per part. '
+        'If the question has no parts, return a single entry with apartado = "único".\n'
+        '- For each part set "puntuacion_maxima" (its share of the total, following the rubric) and '
+        f'"puntuacion_obtenida". The parts\' maxima must add up to {puntuacion_maxima}.\n'
+        '- Award each part INDEPENDENTLY. If the rubric says a specific error scores 0 in that part, put 0 there.\n'
+        '- Do NOT compute the total yourself: the sum is done outside. Still fill "puntuacion_obtenida" at the '
+        'top level with your best estimate of the total, used only as a fallback.\n'
         'In "que_esta_mal" explain concrete errors, or state clearly that the answer is correct. '
         'In "criterio_rubrica" state the applied criterion. In "enunciado" give a one-line summary of what the question asks.'
     )
@@ -378,28 +482,33 @@ def evaluar_pregunta_con_gemma(info_pregunta, criterios_rag, modelo_gemma=None, 
 
     def _fila(item):
         """Construye la evaluación final combinando la salida del modelo con datos deterministas."""
-        try:
-            obtenida = float(item.get('puntuacion_obtenida', 0))
-        except (TypeError, ValueError):
-            obtenida = 0.0
-        obtenida = max(0.0, min(obtenida, puntuacion_maxima))
-        estado = str(item.get('estado', 'PARCIAL')).upper()
-        if estado not in ('CORRECTO', 'PARCIAL', 'INCORRECTO'):
-            estado = 'PARCIAL'
+        # La nota sale de sumar los apartados; la global del modelo es solo el plan B.
+        apartados = _normalizar_apartados(item.get('apartados'), puntuacion_maxima)
+        obtenida = _puntuacion_desde_apartados(apartados, puntuacion_maxima)
+        if obtenida is None:
+            try:
+                obtenida = float(item.get('puntuacion_obtenida', 0))
+            except (TypeError, ValueError):
+                obtenida = 0.0
+            obtenida = max(0.0, min(obtenida, puntuacion_maxima))
+        obtenida = round(obtenida, 2)
+
         return {
             'pagina': info_pregunta['pagina'],
             'pregunta': info_pregunta['pregunta'],
             'enunciado': (item.get('enunciado') or info_pregunta['contenido'][:140]).strip(),
-            'respuesta_alumno': info_pregunta['contenido'],
-            'estado': estado,
-            'puntuacion_obtenida': round(obtenida, 2),
+            'respuesta_alumno': _extraer_respuesta_alumno(info_pregunta['contenido']),
+            'estado': _estado_desde_puntuacion(obtenida, puntuacion_maxima),
+            'puntuacion_obtenida': obtenida,
             'puntuacion_maxima': puntuacion_maxima,
+            'apartados': apartados,
             'que_esta_mal': (item.get('que_esta_mal') or '').strip(),
             'criterio_rubrica': (item.get('criterio_rubrica') or '').strip(),
         }
 
     # Dos intentos: los modelos locales ocasionalmente devuelven contenido vacío.
-    for intento in range(2):
+    ultimo_intento = 1
+    for intento in range(ultimo_intento + 1):
         try:
             res = requests.post(
                 f'{host}/api/chat',
@@ -420,8 +529,15 @@ def evaluar_pregunta_con_gemma(info_pregunta, criterios_rag, modelo_gemma=None, 
                 contenido = res.json().get('message', {}).get('content', '').strip()
                 item = parsear_json_robusto(contenido)
                 if item and isinstance(item, dict) and item.get('estado'):
-                    return _fila(item)
-                print(f'[Warn] Respuesta vacía/no válida (intento {intento + 1}) para {info_pregunta["pregunta"]}')
+                    # Sin desglose la nota se decide "a ojo", que es justo lo que se quiere
+                    # evitar: se reintenta una vez y, si sigue sin venir, se acepta igual
+                    # antes que dejar la pregunta sin corregir.
+                    tiene_apartados = isinstance(item.get('apartados'), list) and item['apartados']
+                    if tiene_apartados or intento == ultimo_intento:
+                        return _fila(item)
+                    print(f'[Warn] Sin desglose por apartados, reintentando: {info_pregunta["pregunta"]}')
+                else:
+                    print(f'[Warn] Respuesta vacía/no válida (intento {intento + 1}) para {info_pregunta["pregunta"]}')
             else:
                 print(f'[Warn] HTTP {res.status_code} evaluando {info_pregunta["pregunta"]}')
         except Exception as e:
@@ -432,10 +548,11 @@ def evaluar_pregunta_con_gemma(info_pregunta, criterios_rag, modelo_gemma=None, 
         'pagina': info_pregunta['pagina'],
         'pregunta': info_pregunta['pregunta'],
         'enunciado': info_pregunta['contenido'][:140],
-        'respuesta_alumno': info_pregunta['contenido'],
+        'respuesta_alumno': _extraer_respuesta_alumno(info_pregunta['contenido']),
         'estado': 'PARCIAL',
         'puntuacion_obtenida': 0.0,
         'puntuacion_maxima': puntuacion_maxima,
+        'apartados': [],
         'que_esta_mal': 'No se pudo evaluar automáticamente esta pregunta; revísala manualmente frente a la solución.',
         'criterio_rubrica': 'Evaluación manual pendiente.',
     }

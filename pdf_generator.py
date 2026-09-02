@@ -6,6 +6,10 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
 
+# Porcentaje a partir del cual se considera aprobado (un 5 sobre 10).
+UMBRAL_APROBADO_PCT = 50
+
+
 def generar_pdf_informe(datos_examen, lista_evaluaciones, ruta_salida="informe_correccion.pdf"):
     """
     Genera un informe PDF profesional con la corrección detallada del examen.
@@ -117,9 +121,11 @@ def generar_pdf_informe(datos_examen, lista_evaluaciones, ruta_salida="informe_c
     story.append(Spacer(1, 10))
     story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#2563EB'), spaceAfter=12))
     
-    # Resumen de Nota Box
-    color_nota = colors.HexColor('#16A34A') if porcentaje >= 60 else colors.HexColor('#DC2626')
-    estado_general = "APROBADO" if porcentaje >= 60 else "NECESITA MEJORAR"
+    # Resumen de Nota Box.
+    # El aprobado está en el 50 % (un 5 sobre 10), no en el 60 %.
+    aprobado = porcentaje >= UMBRAL_APROBADO_PCT
+    color_nota = colors.HexColor('#16A34A') if aprobado else colors.HexColor('#DC2626')
+    estado_general = "APROBADO" if aprobado else "SUSPENSO"
     
     resumen_data = [
         [
@@ -187,6 +193,24 @@ def generar_pdf_informe(datos_examen, lista_evaluaciones, ruta_salida="informe_c
             [Paragraph("<b>Respuesta del Alumno:</b>", style_normal)],
             [Paragraph(respuesta, style_normal)],
             [Spacer(1, 3)],
+        ]
+
+        # Desglose por apartados: de dónde sale exactamente la nota de la pregunta.
+        apartados = item.get("apartados") or []
+        if apartados:
+            card_content.append([Paragraph("<b>Puntuación por apartado:</b>", style_normal)])
+            for ap in apartados:
+                etiqueta = ap.get("apartado", "—")
+                obt = ap.get("puntuacion_obtenida", 0.0)
+                mx = ap.get("puntuacion_maxima", 0.0)
+                motivo = ap.get("motivo", "")
+                color_ap = '#15803D' if (mx > 0 and obt >= mx) else ('#B91C1C' if obt <= 0 else '#A16207')
+                card_content.append([Paragraph(
+                    f"<font color='{color_ap}'><b>{etiqueta}) {obt:g}/{mx:g}</b></font> — {motivo}",
+                    style_normal)])
+            card_content.append([Spacer(1, 3)])
+
+        card_content += [
             [Paragraph("<b>¿Qué está mal / Análisis de Errores:</b>", style_normal)],
             [Paragraph(que_mal, style_mal if ("INCORRECTO" in estado or "PARCIAL" in estado) else style_bien)],
             [Spacer(1, 3)],

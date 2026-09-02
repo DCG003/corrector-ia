@@ -6,6 +6,13 @@ export interface Rubrica {
   activa?: boolean;
 }
 
+export interface ApartadoEvaluado {
+  apartado: string;
+  puntuacion_maxima: number;
+  puntuacion_obtenida: number;
+  motivo: string;
+}
+
 export interface Evaluacion {
   pagina: number;
   pregunta: string;
@@ -14,6 +21,8 @@ export interface Evaluacion {
   estado: 'CORRECTO' | 'PARCIAL' | 'INCORRECTO';
   puntuacion_obtenida: number;
   puntuacion_maxima: number;
+  /** Desglose que suma la nota de la pregunta. Ausente en correcciones antiguas. */
+  apartados?: ApartadoEvaluado[];
   que_esta_mal: string;
   criterio_rubrica: string;
 }
