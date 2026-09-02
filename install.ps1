@@ -280,14 +280,11 @@ if ($ModeloEvaluador -ne "gemma3:12b") {
 }
 
 Write-Host ""
-Write-Host "  Para arrancar la aplicacion, en dos terminales:" -ForegroundColor White
+Write-Host "  Para arrancar la aplicacion (el frontend levanta tambien el backend):" -ForegroundColor White
 Write-Host ""
-Write-Host "    # 1) Backend" -ForegroundColor DarkGray
-Write-Host "    .\.venv\Scripts\python.exe server.py"
-Write-Host ""
-Write-Host "    # 2) Frontend" -ForegroundColor DarkGray
-Write-Host "    cd frontend; npm run dev"
+Write-Host "    cd frontend"
+Write-Host "    npm run dev"
 Write-Host ""
 Write-Host "  Y abre http://localhost:5173 en el navegador." -ForegroundColor White
-Write-Host "  En la carpeta 'ejemplos' tienes una rubrica y dos examenes para probar." -ForegroundColor DarkGray
+Write-Host "  En la carpeta 'ejemplos' tienes una rubrica y tres examenes para probar." -ForegroundColor DarkGray
 Write-Host ""

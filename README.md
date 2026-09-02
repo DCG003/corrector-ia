@@ -92,19 +92,36 @@ ollama pull glm-ocr           # OCR (opcional)
 
 ## Puesta en marcha
 
-Necesitas dos terminales:
+Un solo comando: al levantar el frontend se arranca también el backend.
 
 ```powershell
-# 1) Backend  ->  http://localhost:8000  (documentación de la API en /docs)
-.\.venv\Scripts\python.exe server.py
-
-# 2) Frontend ->  http://localhost:5173
 cd frontend
 npm run dev
 ```
 
 Abre <http://localhost:5173>. En la esquina superior derecha verás si Ollama está
 activo y si te falta algún modelo.
+
+Los mensajes del backend salen en la misma terminal con el prefijo `[backend]`, y al
+parar el servidor con `Ctrl+C` se cierra también. La API queda en
+<http://localhost:8000>, con su documentación interactiva en `/docs`.
+
+<details>
+<summary>Arrancarlos por separado</summary>
+
+Si prefieres controlar el backend aparte (para depurarlo, ver su salida limpia o
+recargarlo por tu cuenta), simplemente arráncalo antes: `npm run dev` comprueba el
+puerto 8000 y, si ya hay algo escuchando, no lanza un segundo proceso.
+
+```powershell
+# Terminal 1 — backend
+.\.venv\Scripts\python.exe server.py
+
+# Terminal 2 — frontend
+cd frontend
+npm run dev
+```
+</details>
 
 ---
 
