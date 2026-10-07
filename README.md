@@ -255,8 +255,7 @@ alternativa razonable entre los que sí tengas.
 └── temp/                   Subidas temporales (se limpian solas)
 ```
 
-> `main.py` y `prompt.md` son restos de pruebas iniciales y no forman parte del flujo
-> de la aplicación.
+> `prompt.md` es un resto de pruebas iniciales y no forma parte del flujo de la aplicación.
 
 ---
 

@@ -18,6 +18,9 @@ informes/
 temp/
 temp_pdf_images/
 
+# --- Scripts de prueba ---
+/main.py
+
 # --- Herramientas locales ---
 .claude/
 .agents/
